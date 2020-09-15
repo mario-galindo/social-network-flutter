@@ -1,5 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+final GoogleSignIn gSignIn = GoogleSignIn();
 
 class HomePage extends StatefulWidget {
   @override
@@ -9,8 +12,47 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool isSignedIn = false;
 
+  void initState() {
+    super.initState();
+
+    gSignIn.onCurrentUserChanged.listen((gSigninAccount) {
+      controlSignIn(gSigninAccount);
+    }, onError: (gError) {
+      print("Error Message:" + gError);
+    });
+
+    gSignIn.signInSilently(suppressErrors: false).then((gSignInAccount) {
+      controlSignIn(gSignInAccount);
+    }).catchError((gError) {
+      print("Error Message:" + gError);
+    });
+  }
+
+  controlSignIn(GoogleSignInAccount signInAccount) async {
+    if (signInAccount != null) {
+      setState(() {
+        isSignedIn = true;
+      });
+    } else {
+      setState(() {
+        isSignedIn = false;
+      });
+    }
+  }
+
+  loginUser() {
+    gSignIn.signIn();
+  }
+
+  logoutUser() {
+    gSignIn.signOut();
+  }
+
   Widget buildHomeScreen() {
-    return Text("already signined in");
+    return RaisedButton.icon(
+        onPressed: logoutUser,
+        icon: Icon(Icons.close),
+        label: Text("Sign Out"));
   }
 
   Scaffold buildSignInScreen() {
@@ -35,7 +77,7 @@ class _HomePageState extends State<HomePage> {
                   fontSize: 92.0, color: Colors.white, fontFamily: "Signatra"),
             ),
             GestureDetector(
-              onTap: () => "Boton Presionado",
+              onTap: loginUser,
               child: Container(
                 width: 270.0,
                 height: 65.0,
