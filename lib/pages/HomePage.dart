@@ -3,7 +3,7 @@ import 'package:buddiesgram/pages/CreateAccountPage.dart';
 import 'package:buddiesgram/pages/NotificationsPage.dart';
 import 'package:buddiesgram/pages/ProfilePage.dart';
 import 'package:buddiesgram/pages/SearchPage.dart';
-import 'package:buddiesgram/pages/TimeLinePage.dart';
+//import 'package:buddiesgram/pages/TimeLinePage.dart';
 import 'package:buddiesgram/pages/UploadPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
@@ -39,7 +39,7 @@ class _HomePageState extends State<HomePage> {
     gSignIn.signInSilently(suppressErrors: false).then((gSignInAccount) {
       controlSignIn(gSignInAccount);
     }).catchError((gError) {
-      print("Error Message:" + gError);
+      print(gError);
     });
   }
 
