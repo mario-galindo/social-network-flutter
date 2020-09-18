@@ -7,12 +7,16 @@ import 'package:buddiesgram/pages/SearchPage.dart';
 //import 'package:buddiesgram/pages/TimeLinePage.dart';
 import 'package:buddiesgram/pages/UploadPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 final GoogleSignIn gSignIn = GoogleSignIn();
 final userReference = Firestore.instance.collection("users");
+final postsReference = Firestore.instance.collection("posts");
+final StorageReference storageReference =
+    FirebaseStorage.instance.ref().child("Post Pictures");
 final DateTime dateTime = DateTime.now();
 User currentUser;
 

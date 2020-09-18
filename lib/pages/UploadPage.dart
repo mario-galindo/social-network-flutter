@@ -1,11 +1,18 @@
 import 'dart:io';
 
 import 'package:buddiesgram/models/user.dart';
+import 'package:buddiesgram/pages/HomePage.dart';
 import 'package:buddiesgram/widgets/CImageWidget.dart';
+import 'package:buddiesgram/widgets/ProgressWidget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+import 'package:image/image.dart' as ImD;
 
 class UploadPage extends StatefulWidget {
   final User gCurrentUser;
@@ -16,8 +23,11 @@ class UploadPage extends StatefulWidget {
   _UploadPageState createState() => _UploadPageState();
 }
 
-class _UploadPageState extends State<UploadPage> {
+class _UploadPageState extends State<UploadPage>
+    with AutomaticKeepAliveClientMixin<UploadPage> {
   File file;
+  bool uploading = false;
+  String postId = Uuid().v4();
   TextEditingController descriptionTextEditingController =
       TextEditingController();
   TextEditingController locationTextEditingController = TextEditingController();
@@ -106,7 +116,9 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
-  removeImage() {
+  clearPostInfo() {
+    locationTextEditingController.clear();
+    descriptionTextEditingController.clear();
     setState(() {
       file = null;
     });
@@ -124,6 +136,70 @@ class _UploadPageState extends State<UploadPage> {
     locationTextEditingController.text = specificAddress;
   }
 
+  compressingPhoto() async {
+    final tDirectory = await getTemporaryDirectory();
+    final path = tDirectory.path;
+    ImD.Image mImageFile = ImD.decodeImage(file.readAsBytesSync());
+    final compressedImageFile = File('$path/img_$postId.jpg')
+      ..writeAsBytesSync(ImD.encodeJpg(mImageFile, quality: 90));
+
+    setState(() {
+      file = compressedImageFile;
+    });
+  }
+
+  controlUploadAndSave() async {
+    setState(() {
+      uploading = true;
+    });
+
+    await compressingPhoto();
+
+    String downloadUrl = await uploadPhoto(file);
+
+    savePostInfoToFireStore(
+        url: downloadUrl,
+        location: locationTextEditingController.text,
+        description: descriptionTextEditingController.text);
+
+    locationTextEditingController.clear();
+    descriptionTextEditingController.clear();
+
+    setState(() {
+      file = null;
+      uploading = false;
+      postId = Uuid().v4();
+    });
+  }
+
+  savePostInfoToFireStore({String url, String location, String description}) {
+    postsReference
+        .document(widget.gCurrentUser.id)
+        .collection("usersPosts")
+        .document(postId)
+        .setData({
+      "postId": postId,
+      "ownerId": widget.gCurrentUser.id,
+      "timestamp": DateTime.now(),
+      "likes": {},
+      "username": widget.gCurrentUser.username,
+      "description": description,
+      "location": location,
+      "url": url,
+    });
+  }
+
+  Future<String> uploadPhoto(mImageFile) async {
+    StorageUploadTask mStorageUploadTask =
+        storageReference.child("post_$postId.jpg").putFile(mImageFile);
+
+    StorageTaskSnapshot storageTaskSnapshot =
+        await mStorageUploadTask.onComplete;
+
+    String downdLoadUrl = await storageTaskSnapshot.ref.getDownloadURL();
+    return downdLoadUrl;
+  }
+
   displayUploadForm() {
     return Scaffold(
       appBar: AppBar(
@@ -131,7 +207,7 @@ class _UploadPageState extends State<UploadPage> {
         leading: IconButton(
             icon: Icon(Icons.arrow_back),
             color: Colors.white,
-            onPressed: removeImage),
+            onPressed: clearPostInfo),
         title: Text(
           "New Post",
           style: TextStyle(
@@ -139,7 +215,7 @@ class _UploadPageState extends State<UploadPage> {
         ),
         actions: <Widget>[
           FlatButton(
-            onPressed: () => print("tapped"),
+            onPressed: uploading ? null : () => controlUploadAndSave(),
             child: Text(
               "Share",
               style: TextStyle(
@@ -152,6 +228,7 @@ class _UploadPageState extends State<UploadPage> {
       ),
       body: ListView(
         children: <Widget>[
+          uploading ? linearProgress() : Text(""),
           Container(
             height: 230.0,
             width: MediaQuery.of(context).size.width * 0.8,
@@ -173,7 +250,8 @@ class _UploadPageState extends State<UploadPage> {
           ),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: CachedNetworkImageProvider(widget.gCurrentUser.url),
+              backgroundImage:
+                  CachedNetworkImageProvider(widget.gCurrentUser.url),
             ),
             title: Container(
               width: 250.0,
@@ -228,6 +306,8 @@ class _UploadPageState extends State<UploadPage> {
       ),
     );
   }
+
+  bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
